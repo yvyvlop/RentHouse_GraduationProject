@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "@dcloudio/types": "^3.4.32",
+    "@types/wechat-miniprogram": "^3.4.10",
+    "@uni-helper/uni-app-types": "^1.3.0"
+  }
+}
