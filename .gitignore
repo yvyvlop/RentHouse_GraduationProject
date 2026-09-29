@@ -13,3 +13,7 @@ desktop.ini
 
 # 日志
 *.log
+
+# 敏感信息（小程序密钥等）
+AppSecret.txt
+*secret*.txt

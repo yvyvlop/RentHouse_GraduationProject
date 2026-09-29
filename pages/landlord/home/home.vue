@@ -22,19 +22,21 @@
 <script>
 	export default {
 		onShow() {
-			if (!uni.getStorageSync('openid')) {
-				uni.reLaunch({
-					url: '/pages/login/login'
-				})
-				return
-			}
-			// 身份分流：租客访问房东主页时重定向回租客主页
-			if (uni.getStorageSync('role') !== 'landlord') {
-				uni.reLaunch({
-					url: '/pages/home/home'
-				})
-			}
-		},
+		const token = uni.getStorageSync('token')
+		if (!token) {
+			uni.reLaunch({
+				url: '/pages/login/login'
+			})
+			return
+		}
+		// 身份分流：租客访问房东主页时重定向回租客主页
+		const user = uni.getStorageSync('user')
+		if (!user || user.role !== 'landlord') {
+			uni.reLaunch({
+				url: '/pages/home/home'
+			})
+		}
+	},
 		methods: {
 			goPublish() {
 				uni.navigateTo({

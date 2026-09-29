@@ -17,6 +17,9 @@
 			<view class="house-card__body">
 				<text class="house-card__title">{{ item.title }}</text>
 				<text class="house-card__meta">{{ item.area }}㎡ · {{ item.layout }}</text>
+				<text class="house-card__meta">{{ item.address }}</text>
+				<text class="house-card__distance" v-if="item.distance != null">距您约 {{ item.distance.toFixed(1) }}
+					km</text>
 				<view class="house-card__foot">
 					<text class="house-card__price">{{ item.price }} 元/月</text>
 					<detail-btn :house-id="item.id" size="small"></detail-btn>
@@ -31,149 +34,156 @@
 </template>
 
 <script>
-	export default {
-		data() {
-			return {
-				keyword: '',
-				address: '',
-				lat: 0,
-				lng: 0,
-				searched: false,
-				houses: []
+import { searchHouses, preloadCovers } from '@/utils/request.js'
+
+export default {
+	data() {
+		return {
+			keyword: '',
+			address: '',
+			lat: 0,
+			lng: 0,
+			searched: false,
+			houses: []
+		}
+	},
+	methods: {
+		async doSearch() {
+			if (!this.keyword && !this.address) {
+				uni.showToast({
+					title: '请输入地址或选择位置',
+					icon: 'none'
+				})
+				return
+			}
+			try {
+				// 关键词 + 经纬度（有位置时按距离排序）
+				const list = await searchHouses(this.keyword, this.lat, this.lng)
+				// 预下载封面图到本地（真机上 image 直接加载 HTTP 图片会被拦截）
+				this.houses = await preloadCovers(list)
+				this.searched = true
+			} catch (err) {
+				console.error('搜索失败', err)
 			}
 		},
-		methods: {
-			doSearch() {
-				if (!this.keyword && !this.address) {
-					uni.showToast({
-						title: '请输入地址或选择位置',
-						icon: 'none'
-					})
-					return
+		chooseAddress() {
+			uni.chooseLocation({
+				success: (res) => {
+					this.address = res.name || res.address
+					this.lat = res.latitude
+					this.lng = res.longitude
+					this.doSearch()
 				}
-				// TODO 接后端接口：关键词 + 经纬度查附近房源
-				this.searched = true
-				this.houses = [{
-					id: 1,
-					cover: '/static/logo.png',
-					title: '示例房源 · 阳光单间',
-					area: 25,
-					layout: '1室1厅1卫',
-					price: 1500
-				}]
-			},
-			chooseAddress() {
-				uni.chooseLocation({
-					success: (res) => {
-						this.address = res.name || res.address
-						this.lat = res.latitude
-						this.lng = res.longitude
-						this.doSearch()
-					}
-				})
-			}
+			})
 		}
 	}
+}
 </script>
 
 <style scoped>
-	.page {
-		padding: 24rpx;
-	}
+.page {
+	padding: 24rpx;
+}
 
-	.search-row {
-		display: flex;
-		align-items: center;
-	}
+.search-row {
+	display: flex;
+	align-items: center;
+}
 
-	.search-input {
-		flex: 1;
-		height: 76rpx;
-		padding: 0 24rpx;
-		font-size: 28rpx;
-		background-color: #FFFFFF;
-		border-radius: 999rpx;
-	}
+.search-input {
+	flex: 1;
+	height: 76rpx;
+	padding: 0 24rpx;
+	font-size: 28rpx;
+	background-color: #FFFFFF;
+	border-radius: 999rpx;
+}
 
-	.choose-btn {
-		margin-left: 16rpx;
-		height: 76rpx;
-		padding: 0 28rpx;
-		display: flex;
-		align-items: center;
-		background-color: #0FDC78;
-		border-radius: 999rpx;
-	}
+.choose-btn {
+	margin-left: 16rpx;
+	height: 76rpx;
+	padding: 0 28rpx;
+	display: flex;
+	align-items: center;
+	background-color: #0FDC78;
+	border-radius: 999rpx;
+}
 
-	.choose-btn__text {
-		font-size: 26rpx;
-		color: #004D26;
-	}
+.choose-btn__text {
+	font-size: 26rpx;
+	color: #004D26;
+}
 
-	.tip {
-		margin-top: 16rpx;
-	}
+.tip {
+	margin-top: 16rpx;
+}
 
-	.tip__text {
-		font-size: 24rpx;
-		color: #8A8A8E;
-	}
+.tip__text {
+	font-size: 24rpx;
+	color: #8A8A8E;
+}
 
-	.house-card {
-		display: flex;
-		margin-top: 24rpx;
-		padding: 16rpx;
-		background-color: #FFFFFF;
-		border-radius: 16rpx;
-	}
+.house-card {
+	display: flex;
+	margin-top: 24rpx;
+	padding: 16rpx;
+	background-color: #FFFFFF;
+	border-radius: 16rpx;
+}
 
-	.house-card__cover {
-		width: 200rpx;
-		height: 200rpx;
-		border-radius: 12rpx;
-		background-color: #F2F2F2;
-		flex-shrink: 0;
-	}
+.house-card__cover {
+	width: 200rpx;
+	height: 200rpx;
+	border-radius: 12rpx;
+	background-color: #F2F2F2;
+	flex-shrink: 0;
+}
 
-	.house-card__body {
-		flex: 1;
-		margin-left: 20rpx;
-		display: flex;
-		flex-direction: column;
-	}
+.house-card__body {
+	flex: 1;
+	margin-left: 20rpx;
+	display: flex;
+	flex-direction: column;
+}
 
-	.house-card__title {
-		font-size: 30rpx;
-		font-weight: 600;
-		color: #1A1A1A;
-	}
+.house-card__title {
+	font-size: 30rpx;
+	font-weight: 600;
+	color: #1A1A1A;
+}
 
-	.house-card__meta {
-		margin-top: 12rpx;
-		font-size: 24rpx;
-		color: #8A8A8E;
-	}
+.house-card__meta {
+	margin-top: 12rpx;
+	font-size: 24rpx;
+	color: #8A8A8E;
+}
 
-	.house-card__foot {
-		margin-top: auto;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
+.house-card__distance {
+	margin-top: 8rpx;
+	font-size: 22rpx;
+	color: #0FDC78;
+}
 
-	.house-card__price {
-		font-size: 32rpx;
-		font-weight: 600;
-		color: #FF5B3B;
-	}
+.house-card__foot {
+	margin-top: auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
 
-	.empty {
-		padding: 80rpx 0;
-		text-align: center;
-	}
+.house-card__price {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #FF5B3B;
+}
 
-	.empty__text {
-		font-size: 26rpx;
-		color: #8A8A8E;
-	}
+.empty {
+	padding: 80rpx 0;
+	text-align: center;
+}
+
+.empty__text {
+	font-size: 26rpx;
+	color: #8A8A8E;
+}
 </style>

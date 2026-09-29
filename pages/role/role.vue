@@ -16,16 +16,35 @@
 </template>
 
 <script>
-	export default {
-		methods: {
-			choose(role) {
-				uni.setStorageSync('role', role)
+import { updateUserInfo } from '@/utils/request.js'
+
+export default {
+	methods: {
+		async choose(role) {
+			uni.showLoading({
+				title: '保存中'
+			})
+			try {
+				// 同步到后端
+				await updateUserInfo({ role })
+				uni.hideLoading()
+
+				// 更新本地缓存
+				const user = uni.getStorageSync('user')
+				user.role = role
+				uni.setStorageSync('user', user)
+
+				// 跳转到主页
 				uni.reLaunch({
 					url: '/pages/home/home'
 				})
+			} catch (err) {
+				uni.hideLoading()
+				console.error('保存身份失败', err)
 			}
 		}
 	}
+}
 </script>
 
 <style scoped>

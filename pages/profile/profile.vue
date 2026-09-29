@@ -34,50 +34,74 @@
 </template>
 
 <script>
-	export default {
-		data() {
-			return {
-				form: {
-					name: '',
-					gender: 'male',
-					contact: ''
+import { getUserInfo, updateUserInfo } from '@/utils/request.js'
+
+export default {
+	data() {
+		return {
+			form: {
+				name: '',
+				gender: 'male',
+				contact: ''
+			}
+		}
+	},
+	onLoad() {
+		this.loadProfile()
+	},
+	methods: {
+		async loadProfile() {
+			try {
+				const user = await getUserInfo()
+				this.form = {
+					name: user.name || '',
+					// 后端用 1=男 2=女，前端用 male/female
+					gender: user.gender === 2 ? 'female' : 'male',
+					contact: user.contact || ''
 				}
+			} catch (err) {
+				console.error('加载个人信息失败', err)
 			}
 		},
-		onLoad() {
-			this.form = {
-				name: uni.getStorageSync('name') || '',
-				gender: uni.getStorageSync('gender') || 'male',
-				contact: uni.getStorageSync('contact') || ''
-			}
-		},
-		methods: {
-			save() {
-				if (!this.form.name.trim()) {
-					uni.showToast({
-						title: '请输入姓名',
-						icon: 'none'
-					})
-					return
-				}
-				if (!/^1\d{10}$/.test(this.form.contact)) {
-					uni.showToast({
-						title: '请输入正确的手机号',
-						icon: 'none'
-					})
-					return
-				}
-				// TODO 同步到后端
-				uni.setStorageSync('name', this.form.name)
-				uni.setStorageSync('gender', this.form.gender)
-				uni.setStorageSync('contact', this.form.contact)
+		async save() {
+			if (!this.form.name.trim()) {
 				uni.showToast({
-					title: '已保存'
+					title: '请输入姓名',
+					icon: 'none'
 				})
+				return
+			}
+			if (!/^1\d{10}$/.test(this.form.contact)) {
+				uni.showToast({
+					title: '请输入正确的手机号',
+					icon: 'none'
+				})
+				return
+			}
+
+			const gender = this.form.gender === 'male' ? 1 : 2
+			try {
+				await updateUserInfo({
+					name: this.form.name,
+					gender,
+					contact: this.form.contact
+				})
+
+				// 同步本地缓存的用户信息，供其他页面展示
+				const user = uni.getStorageSync('user') || {}
+				user.name = this.form.name
+				user.gender = gender
+				user.contact = this.form.contact
+				uni.setStorageSync('user', user)
+
+				uni.showToast({ title: '已保存' })
 				setTimeout(() => uni.navigateBack(), 600)
+			} catch (err) {
+				console.error('保存个人信息失败', err)
 			}
 		}
 	}
+}
 </script>
 
 <style scoped>

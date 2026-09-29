@@ -1,0 +1,23 @@
+# ============================================
+# 生产环境配置模板
+# 使用方式：复制本文件为 application-prod.yml，填入真实值后使用
+# 该真实文件已在 .gitignore 中忽略，不会提交到仓库
+# ============================================
+
+# 生产环境：后端和 MySQL 都部署在同一台 Linux 服务器/虚拟机上
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/userdb?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: your-mysql-user
+    password: your-mysql-password
+
+mybatis-plus:
+  configuration:
+    # 生产环境关闭 SQL 打印
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+rental:
+  # 图片保存在服务器上的目录（需提前创建：sudo mkdir -p /data/user/images）
+  image-dir: /data/user/images
+  image-url-prefix: /images

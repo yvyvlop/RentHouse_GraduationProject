@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rental.server.mapper.HouseMapper">
+
+    <!--
+      附近房源查询：两阶段策略
+      第一阶段（矩形粗筛）：用 lat/lng 的 BETWEEN 借助 idx_lat_lng 联合索引快速排除远处数据
+      第二阶段（Haversine 精算）：对剩余数据计算球面距离，按距离升序返回
+
+      距离公式（Haversine，单位：公里）：
+      d = 6371 * acos( cos(rad(φ1)) * cos(rad(φ2)) * cos(rad(λ2) - rad(λ1)) + sin(rad(φ1)) * sin(rad(φ2)) )
+      用 LEAST/GREATEST 把 acos 的入参限制在 [-1,1]，避免浮点误差导致结果为 NaN
+    -->
+    <select id="selectNearby" resultType="com.rental.server.entity.House">
+        SELECT * FROM (
+            SELECT h.*,
+                   (6371 * ACOS(
+                       LEAST(1, GREATEST(-1,
+                           COS(RADIANS(#{lat})) * COS(RADIANS(h.lat)) * COS(RADIANS(h.lng) - RADIANS(#{lng}))
+                           + SIN(RADIANS(#{lat})) * SIN(RADIANS(h.lat))
+                       ))
+                   )) AS distance
+            FROM house h
+            WHERE h.status = 1
+              AND h.lat BETWEEN #{minLat} AND #{maxLat}
+              AND h.lng BETWEEN #{minLng} AND #{maxLng}
+        ) t
+        WHERE t.distance &lt;= #{radius}
+        ORDER BY t.distance ASC
+        LIMIT #{limit}
+    </select>
+
+    <!--
+      关键词搜索：标题或地址模糊匹配
+      传了经纬度则一并计算距离并按距离升序（不加半径限制，便于跨区域搜索）
+    -->
+    <select id="search" resultType="com.rental.server.entity.House">
+        SELECT h.*
+        <if test="lat != null and lng != null">
+            , (6371 * ACOS(
+                LEAST(1, GREATEST(-1,
+                    COS(RADIANS(#{lat})) * COS(RADIANS(h.lat)) * COS(RADIANS(h.lng) - RADIANS(#{lng}))
+                    + SIN(RADIANS(#{lat})) * SIN(RADIANS(h.lat))
+                ))
+            )) AS distance
+        </if>
+        FROM house h
+        WHERE h.status = 1
+        <if test="keyword != null and keyword != ''">
+            AND (h.title LIKE CONCAT('%', #{keyword}, '%')
+                 OR h.address LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="lat != null and lng != null">
+            ORDER BY distance ASC
+        </if>
+        LIMIT #{limit}
+    </select>
+</mapper>

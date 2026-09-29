@@ -12,6 +12,8 @@
 </template>
 
 <script>
+import { login } from '@/utils/request.js'
+
 export default {
 	methods: {
 		handleLogin() {
@@ -21,30 +23,54 @@ export default {
 			uni.login({
 				provider: 'weixin',
 				success: (res) => {
-					uni.hideLoading()
-					// TODO 把 res.code 发给后端，由后端用 appid + AppSecret 换取 openid
-					this.afterLogin(res.code)
+					// 调用后端登录接口
+					this.doLogin(res.code)
 				},
 				fail: () => {
 					uni.hideLoading()
-					// 开发阶段：未配置小程序 appid 或后端服务时，允许以体验模式进入
+					// 开发阶段：微信登录不可用时，允许以体验模式进入
 					uni.showModal({
 						title: '微信登录不可用',
-						content: '当前未配置小程序 appid 或后端服务，是否以体验模式进入？',
+						content: '是否使用体验模式登录？',
 						confirmText: '体验模式',
-						success: (res) => {
-							if (res.confirm) this.afterLogin('dev-openid')
+						success: (modalRes) => {
+							if (modalRes.confirm) {
+								// 体验模式：用固定 code 调后端
+								this.doLogin('dev-test')
+							}
 						}
 					})
 				}
 			})
 		},
-		afterLogin(openid) {
-			uni.setStorageSync('openid', openid || 'dev-openid')
-			const role = uni.getStorageSync('role')
-			uni.reLaunch({
-				url: role ? '/pages/home/home' : '/pages/role/role'
-			})
+
+		async doLogin(code) {
+			try {
+				// 调后端登录接口
+				const data = await login(code)
+				uni.hideLoading()
+
+				// 保存 token 和用户信息
+				uni.setStorageSync('token', data.token)
+				uni.setStorageSync('user', data.user)
+
+				// 跳转到身份选择或主页
+				const role = data.user.role
+				if (role && role !== 'tenant') {
+					// 已有身份且不是默认租客，直接进主页
+					uni.reLaunch({
+						url: '/pages/home/home'
+					})
+				} else {
+					// 新用户或租客，去选择身份
+					uni.reLaunch({
+						url: '/pages/role/role'
+					})
+				}
+			} catch (err) {
+				uni.hideLoading()
+				console.error('登录失败', err)
+			}
 		}
 	}
 }

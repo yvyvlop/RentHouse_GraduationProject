@@ -1,0 +1,23 @@
+# Maven 构建产物
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# 日志
+*.log
+logs/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 本地环境配置（含数据库密码、小程序 AppSecret），不进仓库
+# 首次运行请复制 application-dev.yml.example 为 application-dev.yml 并填入真实值
+src/main/resources/application-dev.yml
+src/main/resources/application-prod.yml

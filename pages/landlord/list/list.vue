@@ -6,6 +6,7 @@
 				<text class="house-card__title">{{ item.title }}</text>
 				<text class="house-card__meta">{{ item.area }}㎡ · {{ item.layout }}</text>
 				<text class="house-card__meta">{{ item.price }} 元/月</text>
+				<text class="house-card__status" v-if="item.status === 0">已下架</text>
 
 				<view class="house-card__actions">
 					<view class="action" @click="goEdit(item)">
@@ -30,140 +31,148 @@
 </template>
 
 <script>
-	export default {
-		data() {
-			return {
-				houses: []
+import { getMyHouses, deleteHouse, preloadCovers } from '@/utils/request.js'
+
+export default {
+	data() {
+		return {
+			houses: []
+		}
+	},
+	onShow() {
+		// 发布完返回时会重新拉取列表
+		this.loadList()
+	},
+	methods: {
+		async loadList() {
+			try {
+				const list = await getMyHouses()
+				// 预下载封面图到本地（真机上 image 直接加载 HTTP 图片会被拦截）
+				this.houses = await preloadCovers(list)
+			} catch (err) {
+				console.error('加载房源列表失败', err)
 			}
 		},
-		onShow() {
-			// 发布完返回时会重新拉取列表
-			this.loadList()
+		goEdit(item) {
+			uni.navigateTo({
+				url: `/pages/landlord/publish/publish?id=${item.id}`
+			})
 		},
-		methods: {
-			loadList() {
-				// TODO 接后端接口：只查当前登录房东发布的房源
-				this.houses = [{
-					id: 1,
-					cover: '/static/logo.png',
-					title: '示例房源 · 阳光单间',
-					area: 25,
-					layout: '1室1厅1卫',
-					price: 1500
-				}]
-			},
-			goEdit(item) {
-				uni.navigateTo({
-					url: `/pages/landlord/publish/publish?id=${item.id}`
-				})
-			},
-			goPublish() {
-				uni.navigateTo({
-					url: '/pages/landlord/publish/publish'
-				})
-			},
-			remove(item) {
-				uni.showModal({
-					title: '提示',
-					content: `确定删除「${item.title}」？`,
-					success: (res) => {
-						if (!res.confirm) return
-						// TODO 接后端删除接口
-						this.houses = this.houses.filter(h => h.id !== item.id)
-						uni.showToast({
-							title: '已删除'
-						})
+		goPublish() {
+			uni.navigateTo({
+				url: '/pages/landlord/publish/publish'
+			})
+		},
+		remove(item) {
+			uni.showModal({
+				title: '提示',
+				content: `确定删除「${item.title}」？`,
+				success: async (res) => {
+					if (!res.confirm) return
+					try {
+						await deleteHouse(item.id)
+						uni.showToast({ title: '已删除' })
+						this.loadList() // 重新拉取列表
+					} catch (err) {
+						console.error('删除失败', err)
 					}
-				})
-			}
+				}
+			})
 		}
 	}
+}
 </script>
 
 <style scoped>
-	.page {
-		padding: 24rpx 24rpx 60rpx;
-	}
+.page {
+	padding: 24rpx 24rpx 60rpx;
+}
 
-	.house-card {
-		display: flex;
-		margin-bottom: 24rpx;
-		padding: 16rpx;
-		background-color: #FFFFFF;
-		border-radius: 16rpx;
-	}
+.house-card {
+	display: flex;
+	margin-bottom: 24rpx;
+	padding: 16rpx;
+	background-color: #FFFFFF;
+	border-radius: 16rpx;
+}
 
-	.house-card__cover {
-		width: 200rpx;
-		height: 200rpx;
-		border-radius: 12rpx;
-		background-color: #F2F2F2;
-		flex-shrink: 0;
-	}
+.house-card__cover {
+	width: 200rpx;
+	height: 200rpx;
+	border-radius: 12rpx;
+	background-color: #F2F2F2;
+	flex-shrink: 0;
+}
 
-	.house-card__body {
-		flex: 1;
-		margin-left: 20rpx;
-		display: flex;
-		flex-direction: column;
-	}
+.house-card__body {
+	flex: 1;
+	margin-left: 20rpx;
+	display: flex;
+	flex-direction: column;
+}
 
-	.house-card__title {
-		font-size: 30rpx;
-		font-weight: 600;
-		color: #1A1A1A;
-	}
+.house-card__title {
+	font-size: 30rpx;
+	font-weight: 600;
+	color: #1A1A1A;
+}
 
-	.house-card__meta {
-		margin-top: 8rpx;
-		font-size: 24rpx;
-		color: #8A8A8E;
-	}
+.house-card__meta {
+	margin-top: 8rpx;
+	font-size: 24rpx;
+	color: #8A8A8E;
+}
 
-	.house-card__actions {
-		margin-top: auto;
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-	}
+.house-card__status {
+	margin-top: 8rpx;
+	font-size: 22rpx;
+	color: #FF5B3B;
+}
 
-	.action {
-		height: 52rpx;
-		padding: 0 24rpx;
-		margin-right: 16rpx;
-		display: flex;
-		align-items: center;
-		border: 1rpx solid #E5E5E7;
-		border-radius: 999rpx;
-	}
+.house-card__actions {
+	margin-top: auto;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+}
 
-	.action__text {
-		font-size: 24rpx;
-		color: #1A1A1A;
-	}
+.action {
+	height: 52rpx;
+	padding: 0 24rpx;
+	margin-right: 16rpx;
+	display: flex;
+	align-items: center;
+	border: 1rpx solid #E5E5E7;
+	border-radius: 999rpx;
+}
 
-	.empty {
-		padding: 80rpx 0;
-		text-align: center;
-	}
+.action__text {
+	font-size: 24rpx;
+	color: #1A1A1A;
+}
 
-	.empty__text {
-		font-size: 26rpx;
-		color: #8A8A8E;
-	}
+.empty {
+	padding: 80rpx 0;
+	text-align: center;
+}
 
-	.publish-btn {
-		margin-top: 40rpx;
-		height: 92rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background-color: #0FDC78;
-		border-radius: 999rpx;
-	}
+.empty__text {
+	font-size: 26rpx;
+	color: #8A8A8E;
+}
 
-	.publish-btn__text {
-		font-size: 32rpx;
-		color: #004D26;
-	}
+.publish-btn {
+	margin-top: 40rpx;
+	height: 92rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: #0FDC78;
+	border-radius: 999rpx;
+}
+
+.publish-btn__text {
+	font-size: 32rpx;
+	color: #004D26;
+}
 </style>
