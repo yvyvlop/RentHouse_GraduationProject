@@ -1,0 +1,28 @@
+# ============================================
+# 租房管理系统后端 日志轮换配置
+# 安装位置：/etc/logrotate.d/rental-server
+# 手动测试：sudo logrotate -d /etc/logrotate.d/rental-server   （-d 为演练，不实际执行）
+# 立即生效：sudo logrotate -f /etc/logrotate.d/rental-server
+# ============================================
+
+/var/log/rental-server/*.log {
+    # 每天轮换一次
+    daily
+    # 保留 14 份历史日志
+    rotate 14
+    # 历史日志 gzip 压缩
+    compress
+    # 延迟一轮再压缩，保证最近一份未压缩便于排查
+    delaycompress
+    # 日志目录不存在时不报错
+    missingok
+    # 空文件不轮换
+    notifempty
+    # 轮换后的文件名带日期后缀，如 rental-server.log-20260930
+    dateext
+    dateformat -%Y%m%d
+    # 关键：systemd 持有日志文件句柄，必须用 copytruncate（复制后清空原文件），
+    # 若用默认的 rename 方式，systemd 会继续往已改名的旧文件写入
+    copytruncate
+    su root root
+}

@@ -1,0 +1,40 @@
+# ============================================
+# 租房管理系统后端 systemd 服务单元
+# 安装位置：/etc/systemd/system/rental-server.service
+# 安装命令：sudo cp rental-server.service /etc/systemd/system/ && sudo systemctl daemon-reload
+# ============================================
+
+[Unit]
+Description=Rental Server (租房管理系统后端)
+# 等网络就绪后再启动，避免启动时端口绑定失败
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 演示环境使用 root；正式环境建议创建专用账号（如 rental）并授予图片目录权限
+User=root
+WorkingDirectory=/opt/rental-server
+
+# JVM 参数：堆内存上下限、时区、字符集
+Environment="JAVA_OPTS=-Xms256m -Xmx512m -Duser.timezone=Asia/Shanghai -Dfile.encoding=UTF-8"
+
+# 启动命令：prod 环境
+# jar 同目录下的 application-prod.yml 会自动覆盖 jar 包内的同名配置（无需重新打包）
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/rental-server/rental-server-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+
+# 优雅停机：收到 SIGTERM 后等待请求处理完，退出码 143 视为正常
+KillSignal=SIGTERM
+SuccessExitStatus=143
+TimeoutStopSec=30
+
+# 崩溃后 5 秒自动拉起
+Restart=always
+RestartSec=5
+
+# 日志写入文件，由 logrotate 负责轮换（见 rental-server.logrotate）
+StandardOutput=append:/var/log/rental-server/rental-server.log
+StandardError=append:/var/log/rental-server/rental-server.log
+
+[Install]
+WantedBy=multi-user.target

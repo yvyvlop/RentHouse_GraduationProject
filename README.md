@@ -111,6 +111,13 @@ Graduation_Project/
 | `pom.xml`            | Maven 依赖与构建配置：Spring Boot Web、MyBatis-Plus、MySQL 驱动、Lombok、jjwt |
 | `servers/.gitignore` | 忽略构建产物 `target/`、IDE 文件、以及含密码的本地配置文件                    |
 
+#### 部署文件 `deploy/`
+
+| 文件                             | 作用                                                                                                                                                            |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deploy/rental-server.service`   | **systemd 服务单元**。托管后端进程：开机自启、崩溃后 5 秒自动拉起、SIGTERM 优雅停机、日志统一写入 `/var/log/rental-server/`。安装到 `/etc/systemd/system/`      |
+| `deploy/rental-server.logrotate` | **日志轮换配置**。每天轮换、保留 14 份、历史日志 gzip 压缩；使用 `copytruncate` 截断而非重命名，确保 systemd 持有的文件句柄仍然有效。安装到 `/etc/logrotate.d/` |
+
 #### 启动与配置
 
 | 文件                                     | 作用                                                                                                             |
@@ -306,12 +313,70 @@ mvn spring-boot:run
 
 ## 八、部署到服务器
 
-1. 服务器安装 JDK 17 与 MySQL 8，创建数据库与表
-2. 打包：`mvn clean package -DskipTests`，产物在 `target/rental-server-0.0.1-SNAPSHOT.jar`
-3. 上传 jar 到服务器，复制 `application-prod.yml.example` 为 `application-prod.yml` 并填值
-4. 创建图片目录：`sudo mkdir -p /data/user/images`
-5. 启动：`nohup java -jar rental-server-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod > rental.log 2>&1 &`
-6. 前端把 `BASE_URL` 改为服务器地址
+采用 **systemd 托管 + logrotate 日志轮换** 的生产级部署方式（不使用 `nohup`，以获得开机自启、崩溃自动拉起与优雅停机能力）。
+
+### 1. 环境准备
+
+```bash
+# 安装 JDK 17（MySQL 8 需已安装并创建好 userdb 与账号）
+sudo apt update && sudo apt install -y openjdk-17-jre-headless
+
+# 创建应用目录、日志目录、图片目录
+sudo mkdir -p /opt/rental-server /var/log/rental-server /data/user/images
+```
+
+### 2. 打包并上传
+
+```bash
+# 本地打包
+mvn clean package -DskipTests
+
+# 上传 jar 到服务器（在本地执行）
+scp servers/target/rental-server-0.0.1-SNAPSHOT.jar root@服务器IP:/root/
+
+# 服务器上放入应用目录
+sudo cp /root/rental-server-0.0.1-SNAPSHOT.jar /opt/rental-server/
+```
+
+> 如需修改数据库密码等生产配置，可复制 `application-prod.yml.example` 为 `application-prod.yml` 放到 `/opt/rental-server/`，Spring Boot 会自动读取 jar 同目录的配置并覆盖 jar 内的同名配置，无需重新打包。
+
+### 3. 安装 systemd 服务与日志轮换
+
+```bash
+# 上传 servers/deploy/ 下的两个文件到服务器后执行
+sudo cp /root/rental-server.service /etc/systemd/system/
+sudo cp /root/rental-server.logrotate /etc/logrotate.d/rental-server
+sudo chmod 644 /etc/logrotate.d/rental-server
+
+sudo systemctl daemon-reload
+sudo systemctl enable rental-server    # 开机自启
+sudo systemctl start rental-server
+```
+
+### 4. 验证
+
+```bash
+sudo systemctl status rental-server
+curl http://localhost:8080/api/ping
+tail -f /var/log/rental-server/rental-server.log
+
+# 演练日志轮换配置（-d 只演示不执行）
+sudo logrotate -d /etc/logrotate.d/rental-server
+```
+
+### 5. 前端指向服务器
+
+把 `utils/request.js` 中的 `BASE_URL` 改为服务器地址，重新编译小程序。
+
+### 常用管理命令
+
+| 操作       | 命令                                               |
+| ---------- | -------------------------------------------------- |
+| 查看状态   | `sudo systemctl status rental-server`              |
+| 重启服务   | `sudo systemctl restart rental-server`             |
+| 停止服务   | `sudo systemctl stop rental-server`                |
+| 实时看日志 | `tail -f /var/log/rental-server/rental-server.log` |
+| 历史日志   | `ls -lh /var/log/rental-server/`                   |
 
 ---
 

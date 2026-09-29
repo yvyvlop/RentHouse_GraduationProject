@@ -3,14 +3,13 @@
  * 统一处理 baseURL、token 携带、错误提示
  */
 
-// 开发环境：后端跑在本机 8080
-// 真机调试：改成电脑的局域网 IP（ipconfig | findstr IPv4 查看真实网卡地址）
-// 生产环境：改成虚拟机地址，如 http://192.168.105.129:8080
-export const BASE_URL = 'http://192.168.1.102:8080'
+// 生产环境：后端部署在虚拟机上（桥接模式，与电脑同网段）
+// 本地开发时改回电脑的局域网 IP（ipconfig | findstr IPv4 查看）
+export const BASE_URL = 'http://192.168.1.101:8080'
 
 /**
  * 把后端返回的相对路径拼成完整图片地址
- * 例：/images/2026/09/x.png → http://192.168.1.102:8080/images/2026/09/x.png
+ * 例：/images/2026/09/x.png → {BASE_URL}/images/2026/09/x.png
  */
 export function toFullUrl(path) {
 	if (!path) return ''
@@ -61,6 +60,19 @@ export function request(options) {
 					// 后端统一返回 {code, msg, data}
 					if (data.code === 200) {
 						resolve(data.data)
+					} else if (data.code === 401) {
+						// 登录态失效（token 过期，或切换后端导致验签失败）
+						// 清除本地信息并回到登录页，避免页面反复报错
+						uni.removeStorageSync('token')
+						uni.removeStorageSync('user')
+						uni.showToast({
+							title: '登录已失效，请重新登录',
+							icon: 'none'
+						})
+						uni.reLaunch({
+							url: '/pages/login/login'
+						})
+						reject(new Error(data.msg || '未登录'))
 					} else {
 						// 业务错误
 						uni.showToast({
