@@ -307,7 +307,7 @@ mvn spring-boot:run
 
 用 HBuilderX 打开项目根目录 → 运行 → 运行到小程序模拟器 → 微信开发者工具。
 
-**注意**：真机调试时需把 `utils/request.js` 中的 `BASE_URL` 改为电脑的局域网 IP（如 `http://192.168.1.102:8080`），并确保手机与电脑在同一 WiFi。
+**注意**：真机调试时需把 `utils/request.js` 中的 `BASE_URL` 改为虚拟机的局域网 IP（`ip a` 查看），并确保手机与电脑在同一 WiFi、且虚拟机为桥接模式。若虚拟机 IP 经常变化，建议配置内网穿透（见第八章第 5 节），用固定域名替代 IP。
 
 ---
 
@@ -366,7 +366,7 @@ sudo logrotate -d /etc/logrotate.d/rental-server
 
 ### 5. 前端指向服务器
 
-把 `utils/request.js` 中的 `BASE_URL` 改为服务器地址，重新编译小程序。
+把 `utils/request.js` 中的 `BASE_URL` 改为服务器地址（局域网 IP 或内网穿透域名），重新编译小程序。
 
 ### 常用管理命令
 

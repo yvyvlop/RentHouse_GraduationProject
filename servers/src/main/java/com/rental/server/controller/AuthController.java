@@ -1,6 +1,8 @@
 package com.rental.server.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rental.server.common.BusinessException;
 import com.rental.server.common.Result;
 import com.rental.server.entity.User;
@@ -22,6 +24,7 @@ public class AuthController {
 
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
+    private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${rental.wechat.appid}")
@@ -33,9 +36,10 @@ public class AuthController {
     @Value("${rental.wechat.mock:true}")
     private Boolean mock;
 
-    public AuthController(UserMapper userMapper, JwtUtil jwtUtil) {
+    public AuthController(UserMapper userMapper, JwtUtil jwtUtil, ObjectMapper objectMapper) {
         this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/login")
@@ -78,10 +82,15 @@ public class AuthController {
                 appid, secret, code);
 
         try {
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            if (response == null) {
+            // 微信该接口返回的 Content-Type 是 text/plain，Spring 没有能把 text/plain
+            // 直接转成 Map 的转换器，因此先按字符串取出，再自行解析 JSON
+            String body = restTemplate.getForObject(url, String.class);
+            if (body == null || body.isEmpty()) {
                 throw new BusinessException("微信接口返回为空");
             }
+            Map<String, Object> response = objectMapper.readValue(
+                    body, new TypeReference<Map<String, Object>>() {
+                    });
 
             // 微信返回错误码
             if (response.containsKey("errcode")) {
@@ -95,10 +104,9 @@ public class AuthController {
                 throw new BusinessException("微信接口未返回 openid");
             }
             return openid;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
-            if (e instanceof BusinessException) {
-                throw e;
-            }
             throw new BusinessException("调用微信接口失败: " + e.getMessage());
         }
     }
