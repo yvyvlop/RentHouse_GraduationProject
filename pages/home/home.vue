@@ -3,7 +3,7 @@
 		<!-- 搜索栏 + 定位 -->
 		<view class="search-row">
 			<view class="search-box" @click="goSearch">
-				<text class="search-box__placeholder">搜索地址，如“XX小区”</text>
+				<text class="search-box__placeholder">选择位置，查找附近房源</text>
 			</view>
 			<view class="locate-btn" @click="autoLocate">
 				<text class="locate-btn__text">定位</text>

@@ -1,11 +1,7 @@
 <template>
 	<view class="page">
-		<view class="search-row">
-			<input class="search-input" v-model="keyword" placeholder="输入小区、写字楼或地址" confirm-type="search"
-				@confirm="doSearch" />
-			<view class="choose-btn" @click="chooseAddress">
-				<text class="choose-btn__text">选地址</text>
-			</view>
+		<view class="choose-btn" @click="chooseAddress">
+			<text class="choose-btn__text">选择位置，查找附近房源</text>
 		</view>
 
 		<view class="tip" v-if="address">
@@ -27,8 +23,8 @@
 			</view>
 		</view>
 
-		<view class="empty" v-if="searched && !houses.length">
-			<text class="empty__text">没有找到相关房源</text>
+		<view class="empty" v-if="!houses.length">
+			<text class="empty__text">{{ address ? '该位置附近没有找到房源' : '请选择位置查找附近房源' }}</text>
 		</view>
 	</view>
 </template>
@@ -39,40 +35,28 @@ import { searchHouses, preloadCovers } from '@/utils/request.js'
 export default {
 	data() {
 		return {
-			keyword: '',
 			address: '',
 			lat: 0,
 			lng: 0,
-			searched: false,
 			houses: []
 		}
 	},
 	methods: {
-		async doSearch() {
-			if (!this.keyword && !this.address) {
-				uni.showToast({
-					title: '请输入地址或选择位置',
-					icon: 'none'
-				})
-				return
-			}
-			try {
-				// 关键词 + 经纬度（有位置时按距离排序）
-				const list = await searchHouses(this.keyword, this.lat, this.lng)
-				// 预下载封面图到本地（真机上 image 直接加载 HTTP 图片会被拦截）
-				this.houses = await preloadCovers(list)
-				this.searched = true
-			} catch (err) {
-				console.error('搜索失败', err)
-			}
-		},
+		// 选地址：拿到经纬度后按距离升序查附近房源
 		chooseAddress() {
 			uni.chooseLocation({
-				success: (res) => {
+				success: async (res) => {
 					this.address = res.name || res.address
 					this.lat = res.latitude
 					this.lng = res.longitude
-					this.doSearch()
+					try {
+						// 不传关键词，后端按距离排序返回全部上架房源
+						const list = await searchHouses('', this.lat, this.lng)
+						// 预下载封面图到本地（真机上 image 直接加载 HTTP 图片会被拦截）
+						this.houses = await preloadCovers(list)
+					} catch (err) {
+						console.error('搜索失败', err)
+					}
 				}
 			})
 		}
@@ -85,32 +69,17 @@ export default {
 	padding: 24rpx;
 }
 
-.search-row {
-	display: flex;
-	align-items: center;
-}
-
-.search-input {
-	flex: 1;
-	height: 76rpx;
-	padding: 0 24rpx;
-	font-size: 28rpx;
-	background-color: #FFFFFF;
-	border-radius: 999rpx;
-}
-
 .choose-btn {
-	margin-left: 16rpx;
-	height: 76rpx;
-	padding: 0 28rpx;
+	height: 88rpx;
 	display: flex;
 	align-items: center;
+	justify-content: center;
 	background-color: #0FDC78;
 	border-radius: 999rpx;
 }
 
 .choose-btn__text {
-	font-size: 26rpx;
+	font-size: 28rpx;
 	color: #004D26;
 }
 
